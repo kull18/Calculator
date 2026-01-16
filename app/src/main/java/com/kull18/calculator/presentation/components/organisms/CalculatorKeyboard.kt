@@ -12,7 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.kull18.calculator.presentation.components.molecules.HeadCalculator
 import com.kull18.calculator.presentation.components.molecules.NumberPad
 import com.kull18.calculator.presentation.components.molecules.OperatorPanel
@@ -20,10 +20,11 @@ import com.kull18.calculator.presentation.viewmodels.CalculatorViewModel
 
 @Composable
 fun CalculatorKeyboard(
-    viewModel: CalculatorViewModel = viewModel()
+    modifier: Modifier = Modifier,
+    viewModel: CalculatorViewModel = hiltViewModel()
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .padding(16.dp)
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)

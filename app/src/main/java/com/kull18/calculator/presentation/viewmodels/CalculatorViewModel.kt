@@ -4,8 +4,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import com.kull18.calculator.domain.usecase.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class CalculatorViewModel : ViewModel() {
+@HiltViewModel
+class CalculatorViewModel @Inject constructor(
+    private val processNumberInputUseCase: ProcessNumberInputUseCase,
+    private val processOperatorUseCase: ProcessOperatorUseCase,
+    private val calculateResultUseCase: CalculateResultUseCase,
+    private val clearCalculatorUseCase: ClearCalculatorUseCase,
+    private val deleteLastDigitUseCase: DeleteLastDigitUseCase
+) : ViewModel() {
+
     var displayValue by mutableStateOf("0")
         private set
 
@@ -14,71 +25,58 @@ class CalculatorViewModel : ViewModel() {
     private var shouldResetDisplay = false
 
     fun onNumberClick(number: String) {
-        if (shouldResetDisplay || displayValue == "0") {
-            displayValue = number
-            shouldResetDisplay = false
-        } else {
-            displayValue += number
-        }
+        val (newDisplayValue, newShouldReset) = processNumberInputUseCase(
+            displayValue = displayValue,
+            shouldResetDisplay = shouldResetDisplay,
+            number = number
+        )
+
+        displayValue = newDisplayValue
+        shouldResetDisplay = newShouldReset
     }
 
     fun onOperatorClick(operator: String) {
         when (operator) {
-            "=" -> calculateResult()
-            "C" -> clear()
-            "⌫" -> deleteLast()
-            "+", "-", "×", "÷" -> setOperator(operator)
-        }
-    }
+            "=" -> {
+                if (firstOperand != null && currentOperator != null) {
+                    val result = calculateResultUseCase(
+                        displayValue = displayValue,
+                        firstOperand = firstOperand!!,
+                        operator = currentOperator!!
+                    )
 
-    private fun setOperator(operator: String) {
-        if (firstOperand != null && currentOperator != null && !shouldResetDisplay) {
-            calculateResult()
-        }
-
-        firstOperand = displayValue.toIntOrNull()
-        currentOperator = operator
-        shouldResetDisplay = true
-    }
-
-    private fun calculateResult() {
-        val first = firstOperand ?: return
-        val second = displayValue.toIntOrNull() ?: return
-        val operator = currentOperator ?: return
-
-        val result = when (operator) {
-            "+" -> first + second
-            "-" -> first - second
-            "×" -> first * second
-            "÷" -> {
-                if (second == 0) {
-                    displayValue = "Error"
-                    clear()
-                    return
+                    displayValue = result
+                    firstOperand = null
+                    currentOperator = null
+                    shouldResetDisplay = true
                 }
-                first / second
             }
-            else -> return
-        }
+            "C" -> {
+                clearCalculatorUseCase()
 
-        displayValue = result.toString()
-        firstOperand = null
-        currentOperator = null
-        shouldResetDisplay = true
-    }
+                displayValue = "0"
+                firstOperand = null
+                currentOperator = null
+                shouldResetDisplay = false
+            }
+            "⌫" -> {
+                val newDisplayValue = deleteLastDigitUseCase(displayValue)
+                displayValue = newDisplayValue
+            }
+            "+", "-", "×", "÷" -> {
+                val result = processOperatorUseCase(
+                    displayValue = displayValue,
+                    firstOperand = firstOperand,
+                    currentOperator = currentOperator,
+                    shouldResetDisplay = shouldResetDisplay,
+                    operator = operator
+                )
 
-    private fun clear() {
-        displayValue = "0"
-        firstOperand = null
-        currentOperator = null
-        shouldResetDisplay = false
-    }
-
-    private fun deleteLast() {
-        if (displayValue.length > 1) {
-            displayValue = displayValue.dropLast(1)
-        } else {
-            displayValue = "0"
+                displayValue = result.displayValue
+                firstOperand = result.firstOperand
+                currentOperator = result.currentOperator
+                shouldResetDisplay = result.shouldResetDisplay
+            }
         }
     }
 }
